@@ -1,0 +1,231 @@
+/* Shared styles for the inspector tabs. Global, but every class is prefixed `dp-`. */
+
+/* Row height for the details tables, density-aware. FilesTab virtualizes against the same
+   numbers (26 / 32), so keep them in sync with `tableRowHeight()` there. */
+:root {
+  --table-row: 32px;
+}
+:root[data-density='compact'] {
+  --table-row: 26px;
+}
+
+.dp-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ---- Tables (Trackers, Peers, Files) ---- */
+.dp-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  outline: none;
+}
+.dp-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 28px;
+  padding: 0 8px;
+  background: var(--bg-content);
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dp-table th:first-child,
+.dp-table td:first-child {
+  padding-left: 12px;
+}
+.dp-table th:last-child,
+.dp-table td:last-child {
+  padding-right: 12px;
+}
+.dp-table th.sortable {
+  cursor: default;
+  transition: color 0.12s ease;
+}
+.dp-table th.sortable:hover,
+.dp-table th[aria-sort='ascending'],
+.dp-table th[aria-sort='descending'] {
+  color: var(--fg-secondary);
+}
+.dp-table th .dp-sort {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 4px;
+  vertical-align: 0;
+  color: var(--fg-muted);
+}
+.dp-table td {
+  height: var(--table-row);
+  padding: 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dp-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.dp-table tbody tr {
+  transition: background 0.12s ease;
+}
+.dp-table tbody tr:hover {
+  background: var(--hover);
+}
+.dp-table tbody tr.selected,
+.dp-table tbody tr.selected:hover {
+  background: var(--selection);
+}
+.dp-scroll:not(:focus-within) .dp-table tbody tr.selected {
+  background: var(--selection-inactive);
+}
+.dp-table tbody tr.dp-empty-row:hover {
+  background: transparent;
+}
+.dp-table tbody tr.dp-empty-row td {
+  height: 48px;
+  color: var(--fg-muted);
+  text-align: center;
+}
+
+/* Chips inside table cells must shrink with the column. */
+.dp-table td .chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  line-height: 20px;
+  vertical-align: middle;
+}
+
+/* "Have" / "%" cells: 6px bar plus a small percentage. */
+.dp-progress-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dp-progress-cell .progress {
+  flex: 1;
+  min-width: 24px;
+}
+.dp-progress-cell .pct {
+  flex: none;
+  width: 40px;
+  text-align: right;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-empty {
+  padding: 24px 12px;
+  color: var(--fg-muted);
+  text-align: center;
+}
+
+/* ---- Footer rows (buttons / counts) ---- */
+.dp-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-content);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+.dp-footer .btn {
+  color: var(--fg);
+}
+.dp-footer .spacer {
+  flex: 1;
+}
+.dp-footer .dp-count {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Stacked cards with key/value rows (Overview) ---- */
+.dp-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dp-cards > .card {
+  min-width: 0;
+}
+.dp-pad {
+  padding: 12px;
+}
+
+.dp-kv {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: center;
+}
+.dp-kv > .k {
+  min-height: 26px;
+  line-height: 26px;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dp-kv > .v {
+  min-width: 0;
+  min-height: 26px;
+  line-height: 26px;
+  font-size: var(--text-md);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: text;
+}
+.dp-kv > .v.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Trailing header cell holding the ⋯ column chip ---- */
+.dp-table th.dp-menu-cell,
+.dp-table td.dp-menu-cell {
+  padding: 0 6px 0 0;
+  text-align: right;
+}
+.dp-colmenu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  color: var(--fg-secondary);
+  cursor: pointer;
+  vertical-align: middle;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.dp-colmenu:hover,
+.dp-colmenu[aria-expanded='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}

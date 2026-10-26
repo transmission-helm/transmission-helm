@@ -1,0 +1,40 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Transmission Helm version
+      placeholder: '0.1.0 (About dialog)'
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: 'macOS 26.1 / Windows 11 / Ubuntu 24.04'
+    validations:
+      required: true
+  - type: input
+    id: daemon
+    attributes:
+      label: Transmission daemon version
+      placeholder: '4.1.3 (shown in the footer)'
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: '1. … 2. … 3. …'
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected to happen
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error message or logs
+      description: Never paste passwords or session IDs.
+      render: text
