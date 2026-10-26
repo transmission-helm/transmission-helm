@@ -30,8 +30,8 @@ modules:
       - install -Dm644 app.transmissionhelm.desktop.metainfo.xml /app/share/metainfo/
     sources:
       - type: archive
-        url: https://github.com/transmission-helm/transmission-helm/releases/download/v__VERSION__/transmission-helm-__VERSION__.tar.gz
-        sha256: __SHA256_LINUX_TGZ__
+        url: https://github.com/transmission-helm/transmission-helm/releases/download/v0.1.0/transmission-helm-0.1.0.tar.gz
+        sha256: 9862c8c9e98d8b58385eab2a1ec006e11ca598a992531fecad340e2678b9f729
         dest: app
       - type: script
         dest-filename: transmission-helm.sh
