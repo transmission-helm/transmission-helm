@@ -1,6 +1,6 @@
 cask "transmission-helm" do
-  version "__VERSION__"
-  sha256 "__SHA256_MAC_ZIP__"
+  version "0.1.0"
+  sha256 "143ccbc4be28089a681daf1492b88d1614ebf71b4bc76fc317caf022672bb579"
 
   url "https://github.com/transmission-helm/transmission-helm/releases/download/v#{version}/transmission-helm-#{version}-mac-arm64.zip"
   name "Transmission Helm"
@@ -8,7 +8,7 @@ cask "transmission-helm" do
   homepage "https://github.com/transmission-helm/transmission-helm"
 
   depends_on arch: :arm64
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :ventura
 
   app "Transmission Helm.app"
 
