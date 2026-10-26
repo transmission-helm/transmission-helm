@@ -49,7 +49,32 @@ Key rules that keep the app safe and testable:
 
 ### Commit messages
 
-Short imperative subject line (under 72 characters), optional body explaining why. Reference issues with `Fixes #123` where applicable.
+Commits and pull request titles follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) **with a required scope**:
+
+```
+type(scope): short summary in the imperative, lowercase, no trailing period
+
+Optional body explaining why. Reference issues with `Fixes #123`.
+```
+
+Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`. Add `!` after the scope for a breaking change (`feat(settings)!: …`).
+
+Scopes name the area touched:
+
+| Scope                                             | Covers                                            |
+| ------------------------------------------------- | ------------------------------------------------- |
+| `main`                                            | Electron main process in general (`src/main`)     |
+| `rpc`, `connection`, `settings`, `tray`, `menu`   | specific main-process modules                     |
+| `renderer`, `ui`                                  | the Svelte app in general (`src/renderer`)        |
+| `table`, `inspector`, `dialogs`, `peers`, `geoip` | specific renderer features                        |
+| `shared`                                          | `src/shared`                                      |
+| `release`, `ci`, `deps`, `repo`                   | workflows, dependencies, repository configuration |
+| `packaging`, `flatpak`, `homebrew`, `winget`      | distribution manifests                            |
+| `docs`                                            | documentation only                                |
+
+Examples: `fix(rpc): keep the abort timer alive while reading the body`, `feat(table): add bulk action bar`, `build(flatpak): restrict Flathub builds to x86_64`.
+
+Pull requests are squash-merged, so the PR title becomes the commit subject; a CI check rejects titles that do not follow the format.
 
 ### Pull requests
 
