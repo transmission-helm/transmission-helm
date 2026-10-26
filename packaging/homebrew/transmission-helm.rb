@@ -8,7 +8,7 @@ cask "transmission-helm" do
   homepage "https://github.com/transmission-helm/transmission-helm"
 
   depends_on arch: :arm64
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :ventura
 
   app "Transmission Helm.app"
 
