@@ -1,0 +1,58 @@
+name: PR title
+
+# Squash merges use the PR title as the commit subject, so the title must follow
+# Conventional Commits with a scope: type(scope): summary
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  lint:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            test
+            build
+            ci
+            chore
+            revert
+          scopes: |
+            main
+            renderer
+            shared
+            rpc
+            connection
+            settings
+            tray
+            menu
+            ui
+            inspector
+            table
+            dialogs
+            peers
+            geoip
+            packaging
+            flatpak
+            homebrew
+            winget
+            release
+            ci
+            deps
+            docs
+            repo
+          requireScope: true
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: The subject must start with a lowercase letter.
