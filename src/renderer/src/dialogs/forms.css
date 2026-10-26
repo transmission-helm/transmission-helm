@@ -1,0 +1,146 @@
+/* Form helpers shared by dialogs (.modal) and by option forms rendered as pages (.helm-form).
+   Scoped under those two roots so they never leak into the rest of the window. */
+:is(.modal, .helm-form) fieldset {
+  margin: 0 0 12px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  min-width: 0;
+}
+/* Legend drawn as a heading inside the group rather than notched into the border. */
+:is(.modal, .helm-form) legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-secondary);
+}
+:is(.modal, .helm-form) legend + * {
+  clear: both;
+}
+:is(.modal, .helm-form) fieldset:last-child {
+  margin-bottom: 0;
+}
+:is(.modal, .helm-form) .form-grid {
+  gap: 10px 12px;
+}
+:is(.modal, .helm-form) .form-grid > label,
+:is(.modal, .helm-form) .field-label {
+  color: var(--fg-secondary);
+}
+:is(.modal, .helm-form) .form-grid > label.check,
+:is(.modal, .helm-form) .form-grid > .span2 {
+  grid-column: 1 / -1;
+  justify-self: start;
+  color: var(--fg);
+}
+:is(.modal, .helm-form) .form-grid > .full {
+  grid-column: 2;
+  justify-self: stretch;
+}
+:is(.modal, .helm-form) .form-grid > label.check.indent,
+:is(.modal, .helm-form) .form-grid > .span2.indent {
+  padding-left: 23px;
+}
+:is(.modal, .helm-form) .check input[type='radio'] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  margin: 0;
+}
+:is(.modal, .helm-form) .input.wide,
+:is(.modal, .helm-form) .select.wide {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+:is(.modal, .helm-form) .input.num {
+  width: 90px;
+  font-variant-numeric: tabular-nums;
+}
+:is(.modal, .helm-form) .hint {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+:is(.modal, .helm-form) .warn {
+  color: var(--warning);
+  font-size: var(--text-sm);
+}
+:is(.modal, .helm-form) .error-text {
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+:is(.modal, .helm-form) .ok-text {
+  color: var(--success);
+  font-size: var(--text-sm);
+}
+:is(.modal, .helm-form) .footer-spacer {
+  flex: 1;
+}
+:is(.modal, .helm-form) .tab-panel {
+  min-height: 300px;
+}
+:is(.modal, .helm-form) .unit {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+/* Text-style button, for inline links and disclosure toggles. */
+:is(.modal, .helm-form) .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  margin: 0 -4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+:is(.modal, .helm-form) .link-btn:hover {
+  background: var(--accent-soft);
+}
+/* Borderless selectable list (connection profiles, columns, file trees). */
+:is(.modal, .helm-form) .dlg-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  overflow: auto;
+}
+
+/* ---- Option forms rendered as pages ---- */
+.helm-form.page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.helm-form .form-section {
+  scroll-margin-top: 16px;
+}
+.helm-form .form-section-title {
+  margin: 0 0 10px;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--fg);
+}
+/* A section without its own fieldsets gets one card around its rows. */
+.helm-form .page-group {
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+.helm-form.page fieldset {
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+.helm-form.page .tab-panel {
+  min-height: 0;
+}

@@ -1,0 +1,15 @@
+node_modules
+dist
+out
+.DS_Store
+.eslintcache
+*.log*
+.svelte-kit
+coverage
+
+# Private maintainer notes (never committed)
+notes/
+
+# These are real source folders; some global gitignores exclude lib/ and build/
+!src/renderer/src/lib/
+!build/
