@@ -1,0 +1,24 @@
+name: Flatpak
+
+# Builds the Flathub manifest on x86_64 so packaging changes are verified before
+# submission. Runs on changes to packaging/flatpak and on demand.
+on:
+  pull_request:
+    paths: ['packaging/flatpak/**', '.github/workflows/flatpak.yml']
+  workflow_dispatch:
+
+jobs:
+  flatpak:
+    name: Build Flatpak (x86_64)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v7
+      - uses: flathub-infra/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: packaging/flatpak/app.transmissionhelm.desktop.yml
+          bundle: transmission-helm.flatpak
+          cache-key: flatpak-builder-${{ github.sha }}
+          upload-artifact: true
