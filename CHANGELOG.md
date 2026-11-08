@@ -2,6 +2,22 @@
 
 All notable changes to Transmission Helm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-11-08
+
+### Added
+
+- Links found on the clipboard are offered when the window gains focus: the Add Link dialog opens prefilled, or the link is added directly when "add links from the clipboard without asking" is enabled.
+
+### Fixed
+
+- Sorting by queue position (or any column) now orders by the column's value alone; finished torrents are no longer pushed to the end.
+- Magnet and http(s) links containing spaces (typically an unencoded display name) are accepted and percent-encoded instead of rejected.
+- Stale daemon state after changing speed limits or alternate bandwidth; a request whose response body stalls can no longer hang polling; "Test connection" no longer reconfigures the live connection; daemons older than Transmission 4.1 get a clear error instead of an endless reconnect loop; no false "Download complete" after verifying a finished torrent; the auto-reconnect setting now applies to dropped connections; path mappings handle trailing slashes and Windows paths; menu shortcuts are ignored while a dialog is open; Enter in the search box focuses the list; saved passwords can be forgotten; theme and density apply immediately on the Settings page.
+
+### Changed
+
+- Dependency updates (Electron 44.10, Svelte 5.57.3, Vite 8.3.6, Vitest 5.1) and a patched `minimatch` in the build toolchain.
+
 ## [0.1.0] - 2026-10-25
 
 First release.
