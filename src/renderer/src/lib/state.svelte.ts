@@ -18,7 +18,7 @@ export type Page = 'torrents' | 'activity' | 'daemon' | 'settings'
 
 export type DialogKind =
   | { kind: 'addTorrent'; incoming: IncomingTorrent[] }
-  | { kind: 'addLink' }
+  | { kind: 'addLink'; url?: string }
   | { kind: 'connections'; editId?: string }
   | { kind: 'daemonOptions' }
   | { kind: 'appOptions' }

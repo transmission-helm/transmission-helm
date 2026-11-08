@@ -21,16 +21,22 @@ export function isTorrentLink(s: string): boolean {
 
 /**
  * Turn user input into a URL suitable for `torrent_add.filename`.
- * Bare hashes become magnet links; magnet and http(s) URLs pass through.
+ * Bare hashes become magnet links; magnet and http(s) URLs pass through with
+ * stray whitespace (common in copied `dn=` names) percent-encoded.
  * Returns null for anything else.
  */
 export function normalizeLink(input: string): string | null {
   const s = input.trim()
-  if (!s || /\s/.test(s)) return null
+  if (!s) return null
   if (isInfoHash(s)) return `magnet:?xt=urn:btih:${s}`
-  if (/^magnet:\?/i.test(s)) return s
-  if (/^https?:\/\/[^/\s]+/i.test(s)) return s
+  if (/^magnet:\?/i.test(s)) return encodeWhitespace(s)
+  if (/^https?:\/\/[^/\s?#]+(?:[/?#]|$)/i.test(s)) return encodeWhitespace(s)
   return null
+}
+
+/** Percent-encode whitespace runs so a link with spaces is still a valid URL. */
+function encodeWhitespace(url: string): string {
+  return url.replace(/\s+/g, '%20')
 }
 
 /** POSIX, Windows drive or UNC absolute path. */

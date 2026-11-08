@@ -216,8 +216,9 @@
         after adding</label
       >
       <label class="check"
-        ><input type="checkbox" bind:checked={form.autoAddFromClipboard} /> Automatically add links copied
-        to the clipboard</label
+        ><input type="checkbox" bind:checked={form.autoAddFromClipboard} /> Add links found on the clipboard
+        without asking (otherwise the Add Link dialog opens prefilled); applies to links copied to the
+        clipboard</label
       >
     </div>
   </fieldset>

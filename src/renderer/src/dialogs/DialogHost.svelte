@@ -30,7 +30,7 @@
     {#if d.kind === 'addTorrent'}
       <AddTorrentDialog incoming={d.incoming} onclose={close} />
     {:else if d.kind === 'addLink'}
-      <AddLinkDialog onclose={close} />
+      <AddLinkDialog initial={d.url} onclose={close} />
     {:else if d.kind === 'connections'}
       <ConnectionsDialog editId={d.editId} onclose={close} />
     {:else if d.kind === 'daemonOptions'}
