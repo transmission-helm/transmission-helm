@@ -21,6 +21,7 @@
   import { untrack } from 'svelte'
   import './forms.css'
   import type { GeoipStatus, UpdateInfo } from '../../../shared/ipc'
+  import UpdateBanner from '../components/UpdateBanner.svelte'
   import type { AppSettings, Density, Theme } from '../../../shared/settings'
   import { app } from '../lib/state.svelte'
   import { geoipStatusText, updateGeoipDatabase } from '../lib/peer-cache.svelte'
@@ -372,17 +373,15 @@
         <button class="btn" onclick={checkNow} disabled={checking}
           >{checking ? 'Checking…' : 'Check now'}</button
         >
-        {#if update === null}
+        {#if update === null && app.update.phase === 'idle'}
           <span class="ok-text">You're running the latest version ({window.helm.appVersion}).</span>
-        {:else if update}
-          <span>Version {update.version} is available.</span>
-          <button class="btn btn-primary" onclick={() => window.helm.os.openExternal(update!.url)}
-            >Download</button
-          >
         {/if}
       </span>
-      {#if update?.notes}
-        <pre class="notes span2 selectable">{update.notes}</pre>
+      {#if app.update.phase !== 'idle'}
+        <div class="span2"><UpdateBanner inline /></div>
+        {#if app.update.notes}
+          <pre class="notes span2 selectable">{app.update.notes}</pre>
+        {/if}
       {/if}
     </div>
   </div>

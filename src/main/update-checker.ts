@@ -1,6 +1,12 @@
 import type { UpdateInfo } from '../shared/ipc'
 import { compareSemver, parseSemver, semverToString } from '../shared/version'
 
+export interface GitHubReleaseAsset {
+  name: string
+  browser_download_url: string
+  size: number
+}
+
 export interface GitHubRelease {
   tag_name: string
   html_url: string
@@ -8,6 +14,7 @@ export interface GitHubRelease {
   body: string
   prerelease: boolean
   draft: boolean
+  assets?: GitHubReleaseAsset[]
 }
 
 export interface UpdateCheckerOptions {
@@ -22,6 +29,16 @@ export class UpdateChecker {
   constructor(private readonly options: UpdateCheckerOptions) {}
 
   async check(): Promise<UpdateInfo | null> {
+    return this.evaluate(await this.latest())
+  }
+
+  /** The update a release represents for the running version, if any. */
+  evaluate(release: GitHubRelease): UpdateInfo | null {
+    return evaluateRelease(release, this.options.currentVersion)
+  }
+
+  /** The raw `releases/latest` JSON, assets included. */
+  async latest(): Promise<GitHubRelease> {
     const { owner, repo } = this.options
     const fetchImpl = this.options.fetch ?? fetch
     const res = await fetchImpl(`https://api.github.com/repos/${owner}/${repo}/releases/latest`, {
@@ -32,8 +49,7 @@ export class UpdateChecker {
       }
     })
     if (!res.ok) throw new Error(`GitHub API responded ${res.status}`)
-    const release = (await res.json()) as GitHubRelease
-    return evaluateRelease(release, this.options.currentVersion)
+    return (await res.json()) as GitHubRelease
   }
 }
 

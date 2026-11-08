@@ -4,6 +4,7 @@
   import { showMenuFor, sep, type MenuItem } from '../lib/menu.svelte'
   import Icon, { type IconName } from './Icon.svelte'
   import ThemeSwitch from './ThemeSwitch.svelte'
+  import UpdateBanner from './UpdateBanner.svelte'
 
   const mac = window.helm.platform === 'darwin'
 
@@ -78,6 +79,7 @@
   </ul>
 
   <div class="bottom">
+    <UpdateBanner />
     <button
       class="pill"
       title={pillTitle}

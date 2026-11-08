@@ -55,6 +55,24 @@ export interface UpdateInfo {
   notes: string
 }
 
+export type UpdatePhase = 'idle' | 'available' | 'downloading' | 'ready' | 'installing' | 'error'
+
+/** In-app updater state, pushed by the main process on every change. */
+export interface UpdateState {
+  phase: UpdatePhase
+  version?: string
+  /** Release page. */
+  url?: string
+  notes?: string
+  /** False when this install cannot update itself (deb/rpm/portable/dev); offer the release page. */
+  installable: boolean
+  /** Bytes downloaded so far, while downloading. */
+  received?: number
+  total?: number
+  /** Readable message when phase is 'error'. */
+  error?: string
+}
+
 /** Resolved details for one peer IP. Each part is null when disabled, unknown or private. */
 export interface PeerInfo {
   host: string | null
@@ -183,7 +201,17 @@ export interface HelmApi {
   }
 
   updates: {
+    /** Checks GitHub now; a newer release also becomes the updater's available version. */
     check(): Promise<UpdateInfo | null>
+    state(): Promise<UpdateState>
+    /** Downloads and verifies the update for this platform. Never rejects; errors land in state. */
+    download(): Promise<void>
+    /** Downloads first when needed, then installs and relaunches. Never rejects. */
+    install(): Promise<void>
+    /** Aborts a running download. */
+    cancel(): Promise<void>
+    /** Hides the offer until a newer version appears. */
+    dismiss(): Promise<void>
   }
 
   peers: {
@@ -200,5 +228,6 @@ export interface HelmApi {
     onWindowVisibility(cb: (visible: boolean) => void): () => void
     /** The tray asked to reveal one torrent: select it and open the inspector. */
     onFocusTorrent(cb: (id: number) => void): () => void
+    onUpdateState(cb: (s: UpdateState) => void): () => void
   }
 }

@@ -191,14 +191,18 @@ async function checkUpdates(): Promise<void> {
     }
     return
   }
+  // The check also fed the updater; install in place when this build can update itself.
+  const state = await window.helm.updates.state().catch(() => null)
+  const installable = state?.installable === true && state.version === info.version
   app.dialog = {
     kind: 'confirm',
     title: 'Update available',
     message: `Transmission Helm ${info.version} is available (you have ${window.helm.appVersion}).${info.notes ? '\n\n' + info.notes : ''}`,
-    confirmLabel: 'Open release page',
+    confirmLabel: installable ? 'Install' : 'Open release page',
     onConfirm: () => {
       app.dialog = null
-      void window.helm.os.openExternal(info.url)
+      if (installable) void app.run('Install update', () => window.helm.updates.install())
+      else void window.helm.os.openExternal(info.url)
     }
   }
 }

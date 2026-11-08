@@ -4,7 +4,7 @@
  * The main process is the source of truth; this mirrors its snapshots and
  * holds purely UI-side state (selection, filters, dialogs).
  */
-import type { ConnectionSnapshot, IncomingTorrent } from '../../../shared/ipc'
+import type { ConnectionSnapshot, IncomingTorrent, UpdateState } from '../../../shared/ipc'
 import type { TorrentDetail } from '../../../shared/rpc-types'
 import type { AppSettings, DetailTab, UiState } from '../../../shared/settings'
 import { defaultSettings, defaultUiState } from '../../../shared/settings'
@@ -53,6 +53,8 @@ class AppState {
     lastUpdated: 0
   })
   detail = $state<TorrentDetail | null>(null)
+  /** In-app updater state (rail banner, Settings → Updates). */
+  update = $state<UpdateState>({ phase: 'idle', installable: false })
   settings = $state<AppSettings>(defaultSettings())
   ui = $state<UiState>(defaultUiState())
   /** Whether the OS credential store can hold passwords; loaded in init(). */
@@ -230,8 +232,13 @@ class AppState {
           if (kept.length !== this.selectedIds.size) this.selectedIds = new Set(kept)
         }
       }),
-      h.connection.onDetail((d) => (this.detail = d))
+      h.connection.onDetail((d) => (this.detail = d)),
+      h.events.onUpdateState((u) => (this.update = u))
     ]
+    void h.updates
+      .state()
+      .then((u) => (this.update = u))
+      .catch(() => {})
     // Keep the main process informed of which torrent/tab to poll in detail.
     const stop = $effect.root(() => {
       $effect(() => {
