@@ -11,6 +11,35 @@ const ACTOOL = '/Applications/Xcode.app/Contents/Developer/usr/bin/actool'
 
 exports.default = async function afterPack(context) {
   if (context.electronPlatformName !== 'darwin') return
+  await compileIconComposerIcon(context)
+  adHocSignIfUnsigned(context)
+}
+
+// Without a Developer ID certificate electron-builder leaves the bundle unsigned, and
+// macOS 15+ reports unsigned downloads as "damaged" with no way to open them. An ad-hoc
+// signature keeps Gatekeeper's "Open Anyway" path available. Skipped when the bundle
+// already carries a real signature (CSC_LINK / auto-discovered identity).
+function adHocSignIfUnsigned(context) {
+  const appPath = join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`)
+  try {
+    execFileSync('/usr/bin/codesign', ['--verify', '--strict', appPath], { stdio: 'ignore' })
+    return // already signed
+  } catch {
+    /* unsigned: fall through */
+  }
+  try {
+    execFileSync(
+      '/usr/bin/codesign',
+      ['--force', '--deep', '--sign', '-', '--timestamp=none', appPath],
+      { stdio: ['ignore', 'ignore', 'inherit'] }
+    )
+    console.log('  • ad-hoc signed the app bundle (no Developer ID certificate available)')
+  } catch (err) {
+    console.log(`  • ad-hoc signing failed: ${err.message}`)
+  }
+}
+
+async function compileIconComposerIcon(context) {
   const iconSource = join(context.packager.projectDir, 'build', 'AppIcon.icon')
   if (!existsSync(ACTOOL) || !existsSync(iconSource)) {
     console.log('  • skipped Icon Composer icon (actool or build/AppIcon.icon not found)')

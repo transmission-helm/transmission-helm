@@ -95,7 +95,7 @@ Bump `version` in `package.json`, commit, then tag and push:
 git tag v0.2.0 && git push --tags
 ```
 
-The Release workflow builds installers for all three platforms and attaches them to a draft GitHub release. Builds are not code-signed: on macOS, right-click the app and choose Open the first time; on Windows, choose "More info → Run anyway" in the SmartScreen prompt.
+The Release workflow builds installers for all three platforms and attaches them to a draft GitHub release. Builds are not signed with an Apple Developer ID. On macOS the first launch is blocked by Gatekeeper: open it once, then go to System Settings → Privacy & Security and click **Open Anyway**, or run `xattr -dr com.apple.quarantine "/Applications/Transmission Helm.app"`. On Windows, choose "More info → Run anyway" in the SmartScreen prompt.
 
 ## License
 
