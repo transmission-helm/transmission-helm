@@ -15,11 +15,13 @@ import type { ConnectionManager } from './connection'
 import type { PeerResolver } from './peer-resolver'
 import type { SettingsStore } from './settings'
 import type { UpdateChecker } from './update-checker'
+import type { Updater } from './updater'
 
 export interface IpcDeps {
   store: SettingsStore
   connection: ConnectionManager
   updates: UpdateChecker
+  updater: Updater
   peers: PeerResolver
   window: () => BrowserWindow | null
   onSettingsChanged: () => void
@@ -183,10 +185,16 @@ export function registerIpc(deps: IpcDeps): void {
 
   // ---- updates
   handle('helm:updates:check', async () => {
-    const info = await deps.updates.check()
+    const release = await deps.updates.latest()
     store.update({ lastUpdateCheck: Date.now() })
-    return info
+    await deps.updater.offer(release, { manual: true })
+    return deps.updates.evaluate(release)
   })
+  handle('helm:updates:state', () => deps.updater.state())
+  handle('helm:updates:download', () => deps.updater.download())
+  handle('helm:updates:install', () => deps.updater.install())
+  handle('helm:updates:cancel', () => deps.updater.cancel())
+  handle('helm:updates:dismiss', () => deps.updater.dismiss())
 
   // ---- peers
   handle('helm:peers:resolve', async (ips: unknown): Promise<PeerResolution> => {

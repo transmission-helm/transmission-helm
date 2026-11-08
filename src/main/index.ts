@@ -16,6 +16,7 @@ import { GEOIP_MAX_AGE_MS, PeerResolver } from './peer-resolver'
 import { SettingsStore } from './settings'
 import { TrayController } from './tray'
 import { UpdateChecker } from './update-checker'
+import { Updater } from './updater'
 
 const GITHUB_OWNER = 'transmission-helm'
 const GITHUB_REPO = 'transmission-helm'
@@ -355,6 +356,31 @@ app.whenReady().then(async () => {
     repo: GITHUB_REPO,
     currentVersion: app.getVersion()
   })
+  const updater = new Updater({
+    dir: join(app.getPath('userData'), 'updates'),
+    currentVersion: app.getVersion(),
+    target: {
+      platform: process.platform,
+      arch: process.arch,
+      appImage: process.env.APPIMAGE,
+      portable: process.env.PORTABLE_EXECUTABLE_FILE
+    },
+    packaged: app.isPackaged,
+    execPath: app.getPath('exe'),
+    relaunch: (options) => app.relaunch(options),
+    exit: (code) => {
+      // app.exit() skips before-quit; persist the window state first.
+      quitting = true
+      store.flushUi()
+      app.exit(code)
+    },
+    quit: () => {
+      quitting = true
+      app.quit()
+    },
+    openExternal: (url) => shell.openExternal(url),
+    onState: (state) => mainWindow?.webContents.send('helm:event:updateState', state)
+  })
 
   tray = new TrayController(
     {
@@ -416,6 +442,7 @@ app.whenReady().then(async () => {
     store,
     connection,
     updates,
+    updater,
     peers,
     window: () => mainWindow,
     onSettingsChanged: () => {
@@ -444,19 +471,21 @@ app.whenReady().then(async () => {
 
   if (store.get().checkForUpdates && Date.now() - store.get().lastUpdateCheck > 24 * 3600 * 1000) {
     updates
-      .check()
-      .then((info) => {
+      .latest()
+      .then(async (release) => {
         store.update({ lastUpdateCheck: Date.now() })
-        if (info && Notification.isSupported()) {
-          const c = notificationContent({
-            kind: 'updateAvailable',
-            version: info.version,
-            url: info.url
-          })
-          const n = new Notification({ title: c.title, body: c.body })
-          n.on('click', () => void shell.openExternal(info.url))
-          n.show()
-        }
+        // offer() is false for nothing newer and for a version the user dismissed.
+        const info = updates.evaluate(release)
+        if (!(await updater.offer(release)) || !info || !Notification.isSupported()) return
+        const c = notificationContent({
+          kind: 'updateAvailable',
+          version: info.version,
+          url: info.url
+        })
+        const n = new Notification({ title: c.title, body: c.body })
+        // The rail banner carries the Install button; just bring the window forward.
+        n.on('click', () => showMainWindow())
+        n.show()
       })
       .catch(() => undefined)
   }

@@ -68,7 +68,12 @@ const api: HelmApi = {
   },
 
   updates: {
-    check: () => invoke('helm:updates:check')
+    check: () => invoke('helm:updates:check'),
+    state: () => invoke('helm:updates:state'),
+    download: () => invoke('helm:updates:download'),
+    install: () => invoke('helm:updates:install'),
+    cancel: () => invoke('helm:updates:cancel'),
+    dismiss: () => invoke('helm:updates:dismiss')
   },
 
   peers: {
@@ -81,7 +86,8 @@ const api: HelmApi = {
     onIncomingTorrent: (cb) => subscribe('helm:event:incomingTorrent', cb),
     onMenuCommand: (cb) => subscribe('helm:event:menuCommand', cb),
     onWindowVisibility: (cb) => subscribe('helm:event:windowVisibility', cb),
-    onFocusTorrent: (cb) => subscribe('helm:event:focusTorrent', cb)
+    onFocusTorrent: (cb) => subscribe('helm:event:focusTorrent', cb),
+    onUpdateState: (cb) => subscribe('helm:event:updateState', cb)
   }
 }
 
