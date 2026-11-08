@@ -34,9 +34,18 @@ describe('normalizeLink', () => {
     expect(normalizeLink('http://example.com/a.torrent')).toBe('http://example.com/a.torrent')
     expect(normalizeLink('https://example.com/dl?id=1')).toBe('https://example.com/dl?id=1')
   })
+  it('percent-encodes whitespace inside magnet and http links', () => {
+    expect(normalizeLink(`magnet:?xt=urn:btih:${HEX}&dn=Ubuntu 24.04 desktop`)).toBe(
+      `magnet:?xt=urn:btih:${HEX}&dn=Ubuntu%2024.04%20desktop`
+    )
+    expect(normalizeLink('https://example.com/my file.torrent')).toBe(
+      'https://example.com/my%20file.torrent'
+    )
+  })
   it('rejects garbage', () => {
     expect(normalizeLink('')).toBeNull()
     expect(normalizeLink('hello world')).toBeNull()
+    expect(normalizeLink('http://bad host/x.torrent')).toBeNull()
     expect(normalizeLink('ftp://example.com/a.torrent')).toBeNull()
     expect(normalizeLink('abc123')).toBeNull()
     expect(normalizeLink(HEX.slice(1))).toBeNull()

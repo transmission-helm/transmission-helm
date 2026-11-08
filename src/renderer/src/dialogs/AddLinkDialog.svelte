@@ -6,17 +6,24 @@
 
   interface Props {
     onclose: () => void
+    /** Prefilled link (e.g. detected on the clipboard); skips the clipboard lookup. */
+    initial?: string
   }
 
-  let { onclose }: Props = $props()
+  let { onclose, initial }: Props = $props()
 
-  let value = $state('')
+  // svelte-ignore state_referenced_locally -- the prefill is read once on purpose
+  let value = $state(initial ?? '')
   let touched = $state(false)
   let input = $state<HTMLInputElement>()
 
   const normalized = $derived(normalizeLink(value))
 
   onMount(() => {
+    if (initial) {
+      queueMicrotask(() => input?.select())
+      return
+    }
     void window.helm.os
       .readClipboard()
       .then((text) => {

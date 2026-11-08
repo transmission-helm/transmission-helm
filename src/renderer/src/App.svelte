@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { app } from './lib/state.svelte'
   import { installGlobalShortcuts, openAddTorrent, runCommand } from './lib/commands'
+  import { installClipboardWatcher } from './lib/clipboard-watch'
   import { closeMenu, menu } from './lib/menu.svelte'
   import { dragHasTorrents, incomingFromDataTransfer } from './lib/incoming'
   import Rail from './components/Rail.svelte'
@@ -38,6 +39,7 @@
     const offs = [
       app.init(),
       installGlobalShortcuts(),
+      installClipboardWatcher(),
       window.helm.events.onMenuCommand(runCommand),
       window.helm.events.onIncomingTorrent((t) => openAddTorrent([t])),
       window.helm.events.onFocusTorrent((id) => {
