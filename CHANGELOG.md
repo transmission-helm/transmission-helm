@@ -2,6 +2,17 @@
 
 All notable changes to Transmission Helm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] - 2026-11-08
+
+### Added
+
+- Updates can be installed from inside the app: when a newer release exists, the rail and Settings → Updates show an **Install** button that downloads the right asset, verifies its checksum, installs it and relaunches (macOS, Windows installer, Linux AppImage). Nothing is downloaded or installed without that click; other builds open the release page instead.
+- Optional notice when the connected Transmission daemon is older than the latest stable release (Settings → Updates), with a setup hint when the daemon's paths make it obvious, and a system notification once per new version.
+
+### Fixed
+
+- macOS downloads were reported as "damaged" on macOS 15 and later. Unsigned builds now carry an ad-hoc signature, so Gatekeeper offers **Open Anyway** instead; the first-launch instructions were updated.
+
 ## [0.1.1] - 2026-11-08
 
 ### Added
