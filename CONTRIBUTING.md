@@ -78,6 +78,10 @@ Pull requests are squash-merged, so the PR title becomes the commit subject; a C
 
 ### Pull requests
 
+1. Open the pull request as a **draft** and let CI run.
+2. Once CI is green, do a code review pass (maintainers use an automated review and address the relevant findings; contributors are welcome to self-review the diff with the same rigor), push the fixes and let CI run again.
+3. Mark the PR **ready for review** only when the review is addressed and CI is green. Ready PRs are squash-merged; the PR title becomes the commit subject.
+
 Describe what changed and why, list anything you could not test, and include screenshots for UI changes in light and dark mode.
 
 ## Reporting bugs
