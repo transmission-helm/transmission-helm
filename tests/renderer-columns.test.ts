@@ -150,21 +150,21 @@ describe('compareTorrents', () => {
       'unknown'
     ])
   })
-  it('sorts finished torrents after the queue', () => {
+  it('sorts by queue position regardless of status', () => {
     const list = [
+      makeTorrent({ name: 'second', queue_position: 2 }),
       makeTorrent({
         name: 'done',
         queue_position: 0,
         status: TorrentStatus.Stopped,
         left_until_done: 0
       }),
-      makeTorrent({ name: 'second', queue_position: 2 }),
       makeTorrent({ name: 'first', queue_position: 1 })
     ]
     expect(ids([...list].sort((a, b) => compareTorrents(a, b, 'queuePosition')))).toEqual([
+      'done',
       'first',
-      'second',
-      'done'
+      'second'
     ])
   })
   it('sorts seeds by local plus swarm count', () => {
