@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26",
+  "generatedAt": "2026-11-08",
   "entries": [
     {
       "name": "@electron-toolkit/preload",
@@ -51,7 +51,7 @@
     },
     {
       "name": "mmdb-lib",
-      "version": "3.0.3",
+      "version": "3.0.4",
       "license": "MIT",
       "url": "https://github.com/runk/mmdb-lib",
       "description": "Maxmind DB (MMDB) Library",
