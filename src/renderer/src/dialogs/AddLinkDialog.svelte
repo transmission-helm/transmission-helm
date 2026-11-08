@@ -12,6 +12,7 @@
 
   let { onclose, initial }: Props = $props()
 
+  // svelte-ignore state_referenced_locally -- the prefill is read once on purpose
   let value = $state(initial ?? '')
   let touched = $state(false)
   let input = $state<HTMLInputElement>()
