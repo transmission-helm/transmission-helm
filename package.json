@@ -1,6 +1,6 @@
 {
   "name": "transmission-helm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cross-platform remote control for the Transmission BitTorrent daemon",
   "main": "./out/main/index.js",
   "author": "Transmission Helm contributors",
