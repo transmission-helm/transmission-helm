@@ -73,6 +73,28 @@ export interface UpdateState {
   error?: string
 }
 
+/** "Is the connected Transmission daemon out of date?" state, pushed by main on every change. */
+export interface DaemonUpdateState {
+  /** The notifyDaemonUpdates setting. */
+  enabled: boolean
+  /** Raw `session.version` of the connected daemon, e.g. "4.1.3 (838877323f)". */
+  daemonVersion: string | null
+  /** Latest stable Transmission release, from the last successful check. */
+  latest: { version: string; url: string } | null
+  /** Daemon is older than `latest`. */
+  outdated: boolean
+  /** Latest version the user dismissed; the notice stays hidden while it equals `latest`. */
+  dismissedVersion: string | null
+  /** guessDaemonPlatform() result. */
+  platform: string
+  /** How to update on that platform (a guess); null when unknown. */
+  hint: string | null
+  /** Unix ms of the last successful check. */
+  checkedAt: number | null
+  /** Readable message when the last check failed. */
+  error: string | null
+}
+
 /** Resolved details for one peer IP. Each part is null when disabled, unknown or private. */
 export interface PeerInfo {
   host: string | null
@@ -214,6 +236,14 @@ export interface HelmApi {
     dismiss(): Promise<void>
   }
 
+  daemonUpdate: {
+    state(): Promise<DaemonUpdateState>
+    /** Checks GitHub now, ignoring the daily limit. Never rejects; errors land in `error`. */
+    check(): Promise<DaemonUpdateState>
+    /** Hides the notice for the current latest version. */
+    dismiss(): Promise<DaemonUpdateState>
+  }
+
   peers: {
     /** Host names and/or countries for peer IPs, per the resolvePeer* settings. */
     resolve(ips: string[]): Promise<PeerResolution>
@@ -229,5 +259,6 @@ export interface HelmApi {
     /** The tray asked to reveal one torrent: select it and open the inspector. */
     onFocusTorrent(cb: (id: number) => void): () => void
     onUpdateState(cb: (s: UpdateState) => void): () => void
+    onDaemonUpdateState(cb: (s: DaemonUpdateState) => void): () => void
   }
 }

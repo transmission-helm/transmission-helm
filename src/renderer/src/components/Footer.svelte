@@ -127,6 +127,16 @@
     <span class="truncate">{connectionText}</span>
   </button>
 
+  {#if app.daemonUpdateNotice}
+    {@const notice = app.daemonUpdateNotice}
+    <button
+      class="chip chip-warning daemon-update"
+      title="A newer Transmission release is available. Click to open the release notes."
+      onclick={() => void window.helm.os.openExternal(notice.url)}
+      >Transmission {notice.version} available</button
+    >
+  {/if}
+
   <span class="sep" aria-hidden="true">·</span>
 
   {#each DIRS as dir (dir)}
@@ -215,6 +225,16 @@
   .conn {
     flex: 0 1 auto;
     max-width: 360px;
+  }
+  .daemon-update {
+    flex: none;
+    height: 18px;
+    border: none;
+    font-size: 10.5px;
+    cursor: pointer;
+  }
+  .daemon-update:hover {
+    filter: brightness(0.95);
   }
   .speed {
     flex: none;

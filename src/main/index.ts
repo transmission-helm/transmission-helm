@@ -9,6 +9,7 @@ import { notificationContent, type NotificationEvent } from '../shared/notificat
 import { ConnectionManager } from './connection'
 import { CredentialVault } from './credentials'
 import { electronEncryptor } from './credentials-electron'
+import { DaemonUpdateMonitor } from './daemon-update'
 import { registerIpc, readTorrentFile } from './ipc'
 import { applyMenu } from './menu'
 import { fetchForProfile } from './net'
@@ -381,6 +382,26 @@ app.whenReady().then(async () => {
     openExternal: (url) => shell.openExternal(url),
     onState: (state) => mainWindow?.webContents.send('helm:event:updateState', state)
   })
+  const daemonUpdate = new DaemonUpdateMonitor({
+    dir: join(app.getPath('userData'), 'updates'),
+    fetch: (url, init) => fetch(url, init),
+    enabled: () => store.get().notifyDaemonUpdates,
+    daemon: () => {
+      const session = connection.isConnected ? connection.snapshot().session : null
+      return session?.version ? session : null
+    },
+    userAgent: `transmission-helm/${app.getVersion()}`,
+    onState: (state) => mainWindow?.webContents.send('helm:event:daemonUpdateState', state),
+    onAvailable: (info) => {
+      if (!Notification.isSupported()) return
+      const c = notificationContent({ kind: 'daemonUpdateAvailable', ...info })
+      const n = new Notification({ title: c.title, body: c.body })
+      if (c.url) n.on('click', () => void shell.openExternal(c.url!))
+      n.show()
+    }
+  })
+  // The monitor's daily gate makes this cheap; it covers apps left running for days.
+  setInterval(() => void daemonUpdate.maybeCheck(), 3600 * 1000).unref()
 
   tray = new TrayController(
     {
@@ -418,6 +439,15 @@ app.whenReady().then(async () => {
   connection.on('snapshot', (snap) => {
     mainWindow?.webContents.send('helm:event:snapshot', snap)
     tray.update(snap, connection.activeProfile?.name ?? null)
+    // A daemon appeared or changed (connect, profile switch, daemon upgrade): re-evaluate.
+    const daemonKey =
+      snap.status === 'connected' && snap.session
+        ? `${snap.session.version}|${snap.session.config_dir}|${snap.session.download_dir}`
+        : null
+    if (daemonKey !== lastDaemonKey) {
+      lastDaemonKey = daemonKey
+      void (daemonKey ? daemonUpdate.maybeCheck() : daemonUpdate.refresh())
+    }
     if (snap.status !== lastStatus || (snap.session?.alt_speed_enabled ?? false) !== lastAlt) {
       lastStatus = snap.status
       lastAlt = snap.session?.alt_speed_enabled ?? false
@@ -426,6 +456,7 @@ app.whenReady().then(async () => {
   })
   let lastStatus = ''
   let lastAlt = false
+  let lastDaemonKey: string | null = null
   connection.on('detail', (d) => mainWindow?.webContents.send('helm:event:detail', d))
   connection.on('notification', (e: NotificationEvent) => {
     if (!store.get().trayNotify || !Notification.isSupported()) return
@@ -443,11 +474,14 @@ app.whenReady().then(async () => {
     connection,
     updates,
     updater,
+    daemonUpdate,
     peers,
     window: () => mainWindow,
     onSettingsChanged: () => {
       refreshChrome()
       maybeUpdateGeoip(false)
+      // Turning the daemon check on runs it right away (within the daily limit).
+      void daemonUpdate.maybeCheck()
     }
   })
 
@@ -488,6 +522,7 @@ app.whenReady().then(async () => {
         n.show()
       })
       .catch(() => undefined)
+      .finally(() => void daemonUpdate.maybeCheck())
   }
 
   app.on('activate', () => showMainWindow())

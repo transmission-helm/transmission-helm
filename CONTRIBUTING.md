@@ -67,6 +67,7 @@ Scopes name the area touched:
 | `rpc`, `connection`, `settings`, `tray`, `menu`   | specific main-process modules                     |
 | `renderer`, `ui`                                  | the Svelte app in general (`src/renderer`)        |
 | `table`, `inspector`, `dialogs`, `peers`, `geoip` | specific renderer features                        |
+| `updates`                                         | app self-update and the daemon update notice      |
 | `shared`                                          | `src/shared`                                      |
 | `release`, `ci`, `deps`, `repo`                   | workflows, dependencies, repository configuration |
 | `docs`                                            | documentation only                                |

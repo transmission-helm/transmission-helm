@@ -20,10 +20,12 @@
     form: OptionsForm | undefined
     /** Toast shown after a successful save. */
     savedText?: string
+    /** Shown above the form, scrolling with it (e.g. the daemon update notice). */
+    header?: Snippet
     children: Snippet
   }
 
-  let { form, savedText = 'Changes saved', children }: Props = $props()
+  let { form, savedText = 'Changes saved', header, children }: Props = $props()
 
   interface Section {
     id: string
@@ -127,6 +129,7 @@
         </nav>
       {/if}
       <div class="form-body" bind:this={body}>
+        {@render header?.()}
         {@render children()}
       </div>
     </div>

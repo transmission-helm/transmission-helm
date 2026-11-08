@@ -80,6 +80,8 @@ export interface AppSettings {
   trayShowSpeeds: boolean
   checkForUpdates: boolean
   lastUpdateCheck: number
+  /** Compare the daemon version with the latest stable Transmission release. */
+  notifyDaemonUpdates: boolean
   /** kB/s presets for the speed-limit menus. 0 means unlimited. */
   downloadSpeeds: number[]
   uploadSpeeds: number[]
@@ -115,6 +117,7 @@ export function defaultSettings(): AppSettings {
     trayShowSpeeds: true,
     checkForUpdates: true,
     lastUpdateCheck: 0,
+    notifyDaemonUpdates: false,
     downloadSpeeds: [...DEFAULT_SPEEDS],
     uploadSpeeds: [...DEFAULT_SPEEDS],
     folderHistory: {},

@@ -5,6 +5,7 @@ export type NotificationEvent =
   | { kind: 'connectionLost'; profileName: string }
   | { kind: 'connectionRestored'; profileName: string }
   | { kind: 'updateAvailable'; version: string; url: string }
+  | { kind: 'daemonUpdateAvailable'; version: string; daemonVersion: string; url: string }
 
 export interface NotificationContent {
   title: string
@@ -48,6 +49,13 @@ export function notificationContent(event: NotificationEvent): NotificationConte
         title: 'Update Available',
         body: `Transmission Helm ${event.version} is available.`,
         tag: 'app-update',
+        url: event.url
+      }
+    case 'daemonUpdateAvailable':
+      return {
+        title: 'Transmission Update Available',
+        body: `Transmission ${event.version} is available; the daemon runs ${event.daemonVersion}.`,
+        tag: `daemon-update-${event.version}`,
         url: event.url
       }
   }

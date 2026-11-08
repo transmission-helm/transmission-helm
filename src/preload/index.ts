@@ -76,6 +76,12 @@ const api: HelmApi = {
     dismiss: () => invoke('helm:updates:dismiss')
   },
 
+  daemonUpdate: {
+    state: () => invoke('helm:daemonUpdate:state'),
+    check: () => invoke('helm:daemonUpdate:check'),
+    dismiss: () => invoke('helm:daemonUpdate:dismiss')
+  },
+
   peers: {
     resolve: (ips) => invoke('helm:peers:resolve', ips),
     geoipStatus: () => invoke('helm:peers:geoipStatus'),
@@ -87,7 +93,8 @@ const api: HelmApi = {
     onMenuCommand: (cb) => subscribe('helm:event:menuCommand', cb),
     onWindowVisibility: (cb) => subscribe('helm:event:windowVisibility', cb),
     onFocusTorrent: (cb) => subscribe('helm:event:focusTorrent', cb),
-    onUpdateState: (cb) => subscribe('helm:event:updateState', cb)
+    onUpdateState: (cb) => subscribe('helm:event:updateState', cb),
+    onDaemonUpdateState: (cb) => subscribe('helm:event:daemonUpdateState', cb)
   }
 }
 
