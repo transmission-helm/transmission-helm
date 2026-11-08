@@ -44,10 +44,6 @@ jobs:
             dialogs
             peers
             geoip
-            packaging
-            flatpak
-            homebrew
-            winget
             release
             ci
             deps
