@@ -47,6 +47,7 @@ jobs:
             release
             ci
             deps
+            deps-dev
             docs
             repo
           requireScope: true
