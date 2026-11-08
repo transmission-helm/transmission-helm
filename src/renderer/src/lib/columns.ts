@@ -12,8 +12,6 @@ import {
 } from '../../../shared/format'
 import { hasError, isFinished, trackerHost } from './filters'
 
-const FINISHED_QUEUE_OFFSET = 1_000_000
-
 export function torrentStatusText(t: Torrent): string {
   if (t.status === TorrentStatus.Stopped && isFinished(t)) return 'Finished'
   return statusLabel(t.status)
@@ -181,7 +179,7 @@ function sortValue(t: Torrent, key: string): number | string {
     case 'id':
       return t.id
     case 'queuePosition':
-      return isFinished(t) ? t.queue_position + FINISHED_QUEUE_OFFSET : t.queue_position
+      return t.queue_position
     case 'seedingTime':
       return t.seconds_seeding
     case 'sizeLeft':
