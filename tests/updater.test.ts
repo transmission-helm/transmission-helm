@@ -11,7 +11,7 @@ import {
 } from 'node:fs'
 import { chmod, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, posix, sep, win32 } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UpdateState } from '../src/shared/ipc'
 import type { GitHubRelease } from '../src/main/update-checker'
@@ -23,6 +23,7 @@ import {
   manifestEntry,
   manifestNameFor,
   parseManifest,
+  pathFor,
   selectAsset,
   Updater,
   type SpawnFn,
@@ -181,28 +182,7 @@ describe('parseManifest', () => {
     expect(parseManifest('version: 1\nsha512: X\n')).toEqual([])
   })
 })
-
-describe('path helpers', () => {
-  it('derives the .app bundle from the executable path', () => {
-    expect(
-      appBundleFromExe('/Applications/Transmission Helm.app/Contents/MacOS/Transmission Helm')
-    ).toBe('/Applications/Transmission Helm.app')
-    expect(appBundleFromExe('/Users/me/Apps/Helm Copy.app/Contents/MacOS/Transmission Helm')).toBe(
-      '/Users/me/Apps/Helm Copy.app'
-    )
-    expect(
-      appBundleFromExe('C:\\Program Files\\Transmission Helm\\TransmissionHelm.exe')
-    ).toBeNull()
-    expect(appBundleFromExe('/opt/Transmission Helm/transmission-helm')).toBeNull()
-    expect(appBundleFromExe('/Applications/X.app/Contents/Frameworks/y')).toBeNull()
-  })
-
-  it('stages the AppImage next to the running one', () => {
-    expect(appImageStagingPath('/home/u/Apps/transmission-helm-0.1.0.AppImage')).toBe(
-      '/home/u/Apps/.transmission-helm-0.1.0.AppImage.update'
-    )
-  })
-
+describe('isHelmInfoPlist', () => {
   it('recognises our Info.plist', () => {
     const plist = (id: string): string =>
       `<plist><dict>\n    <key>CFBundleIdentifier</key>\n    <string>${id}</string>\n</dict></plist>`
@@ -245,6 +225,13 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(root, { recursive: true, force: true })
 })
+
+/**
+ * The temp root as a posix path, for install layouts of a posix target (macOS bundle, AppImage).
+ * The updater handles those with posix rules on every host; Node on Windows accepts forward
+ * slashes, so `C:/Users/.../helm-updater-x` is still a real folder there. No-op on posix hosts.
+ */
+const posixRoot = (): string => root.split(sep).join(posix.sep)
 
 function fixture(platform: NodeJS.Platform = 'darwin'): Fixture {
   const payload = new Uint8Array(400).map((_, i) => i % 251)
@@ -305,7 +292,52 @@ function makeUpdater(
   return { updater: new Updater(opts), states, opts }
 }
 
-describe('Updater.offer', () => {
+// ---- install ----------------------------------------------------------------------
+
+const PLIST = (id = 'app.transmissionhelm.desktop'): string =>
+  `<?xml version="1.0"?>\n<plist version="1.0">\n  <dict>\n    <key>CFBundleIdentifier</key>\n    <string>${id}</string>\n  </dict>\n</plist>\n`
+
+type Call = { command: string; args: string[]; options: unknown }
+
+/** A fake spawn: `ditto -x -k zip dest` creates an app bundle in dest. */
+function fakeSpawn(
+  calls: Call[],
+  behaviour: { plistId?: string; dittoCode?: number; spawnError?: Error } = {}
+): SpawnFn {
+  return (command, args, options) => {
+    calls.push({ command, args, options })
+    const child = new EventEmitter() as EventEmitter & { unref: () => void }
+    child.unref = vi.fn()
+    setImmediate(() => {
+      if (behaviour.spawnError) return void child.emit('error', behaviour.spawnError)
+      if (command === '/usr/bin/ditto' && behaviour.dittoCode === undefined) {
+        const app = posix.join(args[3], 'Transmission Helm.app', 'Contents')
+        mkdirSync(posix.join(app, 'MacOS'), { recursive: true })
+        writeFileSync(posix.join(app, 'Info.plist'), PLIST(behaviour.plistId))
+        writeFileSync(posix.join(app, 'MacOS', 'Transmission Helm'), 'new')
+      }
+      child.emit('spawn')
+      child.emit('exit', behaviour.dittoCode ?? 0)
+    })
+    return child
+  }
+}
+
+function installedBundle(): { apps: string; bundle: string; exe: string } {
+  const apps = posix.join(posixRoot(), 'Applications')
+  const bundle = posix.join(apps, 'Transmission Helm.app')
+  mkdirSync(posix.join(bundle, 'Contents', 'MacOS'), { recursive: true })
+  writeFileSync(posix.join(bundle, 'Contents', 'Info.plist'), PLIST())
+  const exe = posix.join(bundle, 'Contents', 'MacOS', 'Transmission Helm')
+  writeFileSync(exe, 'old')
+  return { apps, bundle, exe }
+}
+
+// ---- platform-neutral: offer, download, verify, cancel ----------------------------------
+// These only touch the downloads folder, a real host path under os.tmpdir(), so expected
+// values use the host `join`, exactly like the updater does for that folder.
+
+describe('offer, download and verify (host paths)', () => {
   it('offers a newer release and says whether it is installable', async () => {
     const f = fixture()
     const { updater } = makeUpdater(f)
@@ -336,17 +368,6 @@ describe('Updater.offer', () => {
     expect(updater.state()).toEqual({ phase: 'idle', installable: false })
   })
 
-  it('is not installable in development or without an AppImage', async () => {
-    const f = fixture()
-    const dev = makeUpdater(f, { packaged: false }).updater
-    await dev.offer(makeRelease(f))
-    expect(dev.state()).toMatchObject({ phase: 'available', installable: false })
-
-    const deb = makeUpdater(f, { target: { platform: 'linux', arch: 'x64' } }).updater
-    await deb.offer(makeRelease(f))
-    expect(deb.state().installable).toBe(false)
-  })
-
   it('remembers a dismissal across instances until a manual check', async () => {
     const f = fixture()
     const a = makeUpdater(f).updater
@@ -364,9 +385,7 @@ describe('Updater.offer', () => {
     expect(await c.offer(makeRelease(f), { manual: true })).toBe(true)
     expect(existsSync(join(f.dir, 'dismissed.json'))).toBe(false)
   })
-})
 
-describe('Updater.download', () => {
   it('streams to a .partial, reports progress and verifies the checksum', async () => {
     const f = fixture()
     const { updater, states } = makeUpdater(f)
@@ -464,65 +483,56 @@ describe('Updater.download', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2) // manifest + asset, once
     expect(readdirSync(f.dir)).toEqual([f.name])
   })
-
-  it('does nothing when not installable', async () => {
-    const f = fixture()
-    const fetchMock = makeFetch(f)
-    const { updater } = makeUpdater(f, { packaged: false, fetch: fetchMock })
-    await updater.offer(makeRelease(f))
-    await updater.download()
-    expect(fetchMock).not.toHaveBeenCalled()
-    expect(updater.state().phase).toBe('available')
-  })
 })
 
-// ---- install ----------------------------------------------------------------------
+// ---- per target platform -----------------------------------------------------------------
+// Every block runs on every host OS. Paths that belong to the target are built with that
+// target's rules (posix for darwin/linux, win32 for win32). Install layouts that must exist on
+// disk use posixRoot(): a real os.tmpdir() folder written with forward slashes.
 
-const PLIST = (id = 'app.transmissionhelm.desktop'): string =>
-  `<?xml version="1.0"?>\n<plist version="1.0">\n  <dict>\n    <key>CFBundleIdentifier</key>\n    <string>${id}</string>\n  </dict>\n</plist>\n`
+describe('target: darwin', () => {
+  const darwin = { platform: 'darwin', arch: 'arm64' } as const
 
-type Call = { command: string; args: string[]; options: unknown }
+  it('uses posix path rules', () => {
+    expect(pathFor('darwin')).toBe(posix)
+  })
 
-/** A fake spawn: `ditto -x -k zip dest` creates an app bundle in dest. */
-function fakeSpawn(
-  calls: Call[],
-  behaviour: { plistId?: string; dittoCode?: number; spawnError?: Error } = {}
-): SpawnFn {
-  return (command, args, options) => {
-    calls.push({ command, args, options })
-    const child = new EventEmitter() as EventEmitter & { unref: () => void }
-    child.unref = vi.fn()
-    setImmediate(() => {
-      if (behaviour.spawnError) return void child.emit('error', behaviour.spawnError)
-      if (command === '/usr/bin/ditto' && behaviour.dittoCode === undefined) {
-        const app = join(args[3], 'Transmission Helm.app', 'Contents')
-        mkdirSync(join(app, 'MacOS'), { recursive: true })
-        writeFileSync(join(app, 'Info.plist'), PLIST(behaviour.plistId))
-        writeFileSync(join(app, 'MacOS', 'Transmission Helm'), 'new')
-      }
-      child.emit('spawn')
-      child.emit('exit', behaviour.dittoCode ?? 0)
-    })
-    return child
-  }
-}
+  it('derives the .app bundle from the executable path', () => {
+    expect(
+      appBundleFromExe('/Applications/Transmission Helm.app/Contents/MacOS/Transmission Helm')
+    ).toBe('/Applications/Transmission Helm.app')
+    expect(appBundleFromExe('/Users/me/Apps/Helm Copy.app/Contents/MacOS/Transmission Helm')).toBe(
+      '/Users/me/Apps/Helm Copy.app'
+    )
+    expect(appBundleFromExe('/opt/Transmission Helm/transmission-helm')).toBeNull()
+    expect(appBundleFromExe('/Applications/X.app/Contents/Frameworks/y')).toBeNull()
+    // A backslash is an ordinary file-name character on macOS, never a separator.
+    expect(appBundleFromExe('/a\\b/X.app/Contents/MacOS/X')).toBe('/a\\b/X.app')
+    expect(
+      appBundleFromExe('C:\\Apps\\Transmission Helm.app\\Contents\\MacOS\\Transmission Helm')
+    ).toBeNull()
+    // How the install tests below see a temp folder on a Windows host.
+    expect(appBundleFromExe('C:/T/Applications/Transmission Helm.app/Contents/MacOS/TH')).toBe(
+      'C:/T/Applications/Transmission Helm.app'
+    )
+  })
 
-function installedBundle(f: Fixture): { apps: string; bundle: string; exe: string } {
-  const apps = join(f.root, 'Applications')
-  const bundle = join(apps, 'Transmission Helm.app')
-  mkdirSync(join(bundle, 'Contents', 'MacOS'), { recursive: true })
-  writeFileSync(join(bundle, 'Contents', 'Info.plist'), PLIST())
-  const exe = join(bundle, 'Contents', 'MacOS', 'Transmission Helm')
-  writeFileSync(exe, 'old')
-  return { apps, bundle, exe }
-}
+  it('offers the mac zip as installable', async () => {
+    const f = fixture('darwin')
+    const { updater } = makeUpdater(f, { target: darwin })
+    await updater.offer(makeRelease(f))
+    expect(updater.state()).toMatchObject({ phase: 'available', installable: true })
+  })
 
-describe('Updater.install (macOS)', () => {
   it('extracts with ditto, swaps the bundle, clears quarantine and relaunches', async () => {
     const f = fixture()
-    const { apps, exe } = installedBundle(f)
+    const { apps, exe } = installedBundle()
     const calls: Call[] = []
-    const { updater, opts } = makeUpdater(f, { execPath: exe, spawn: fakeSpawn(calls) })
+    const { updater, opts } = makeUpdater(f, {
+      target: darwin,
+      execPath: exe,
+      spawn: fakeSpawn(calls)
+    })
     await updater.offer(makeRelease(f))
     await updater.install()
 
@@ -531,11 +541,11 @@ describe('Updater.install (macOS)', () => {
     expect(readdirSync(apps)).toEqual(['Transmission Helm.app'])
     expect(calls.map((c) => c.command)).toEqual(['/usr/bin/ditto', '/usr/bin/xattr'])
     expect(calls[0].args.slice(0, 3)).toEqual(['-x', '-k', join(f.dir, f.name)])
-    expect(calls[0].args[3].startsWith(join(apps, '.transmission-helm-update-'))).toBe(true)
+    expect(calls[0].args[3].startsWith(posix.join(apps, '.transmission-helm-update-'))).toBe(true)
     expect(calls[1].args).toEqual([
       '-dr',
       'com.apple.quarantine',
-      join(apps, 'Transmission Helm.app')
+      posix.join(apps, 'Transmission Helm.app')
     ])
     expect(opts.relaunch).toHaveBeenCalledWith()
     expect(opts.exit).toHaveBeenCalledWith(0)
@@ -544,8 +554,9 @@ describe('Updater.install (macOS)', () => {
 
   it('refuses an archive with a foreign bundle and leaves the app untouched', async () => {
     const f = fixture()
-    const { apps, exe } = installedBundle(f)
+    const { apps, exe } = installedBundle()
     const { updater, opts } = makeUpdater(f, {
+      target: darwin,
       execPath: exe,
       spawn: fakeSpawn([], { plistId: 'com.evil.app' })
     })
@@ -560,8 +571,9 @@ describe('Updater.install (macOS)', () => {
 
   it('reports a ditto failure', async () => {
     const f = fixture()
-    const { exe } = installedBundle(f)
+    const { exe } = installedBundle()
     const { updater, opts } = makeUpdater(f, {
+      target: darwin,
       execPath: exe,
       spawn: fakeSpawn([], { dittoCode: 1 })
     })
@@ -571,26 +583,177 @@ describe('Updater.install (macOS)', () => {
     expect(opts.exit).not.toHaveBeenCalled()
   })
 
-  it('falls back to the release page when the folder is not writable', async () => {
-    if (process.getuid?.() === 0) return // root ignores permissions
-    const f = fixture()
-    const { apps, exe } = installedBundle(f)
-    await chmod(apps, 0o555)
-    try {
-      const calls: Call[] = []
-      const { updater, opts } = makeUpdater(f, { execPath: exe, spawn: fakeSpawn(calls) })
-      await updater.offer(makeRelease(f))
-      await updater.install()
-      expect(updater.state().phase).toBe('error')
-      expect(updater.state().error).toBe(
-        `Cannot write to ${apps}; move the app to a writable location or install manually`
-      )
-      expect(opts.openExternal).toHaveBeenCalledWith(`https://github.com/o/r/releases/tag/v${V}`)
-      expect(calls).toEqual([])
-      expect(readFileSync(exe, 'utf8')).toBe('old')
-    } finally {
-      await chmod(apps, 0o755)
+  // chmod cannot make a folder unwritable on Windows, and root ignores permissions.
+  const canDenyWrites = process.platform !== 'win32' && process.getuid?.() !== 0
+  it.skipIf(!canDenyWrites)(
+    'falls back to the release page when the folder is not writable',
+    async () => {
+      const f = fixture()
+      const { apps, exe } = installedBundle()
+      await chmod(apps, 0o555)
+      try {
+        const calls: Call[] = []
+        const { updater, opts } = makeUpdater(f, {
+          target: darwin,
+          execPath: exe,
+          spawn: fakeSpawn(calls)
+        })
+        await updater.offer(makeRelease(f))
+        await updater.install()
+        expect(updater.state().phase).toBe('error')
+        expect(updater.state().error).toBe(
+          `Cannot write to ${apps}; move the app to a writable location or install manually`
+        )
+        expect(opts.openExternal).toHaveBeenCalledWith(`https://github.com/o/r/releases/tag/v${V}`)
+        expect(calls).toEqual([])
+        expect(readFileSync(exe, 'utf8')).toBe('old')
+      } finally {
+        await chmod(apps, 0o755)
+      }
     }
+  )
+
+  it('stops after a failed download without installing', async () => {
+    const f = fixture()
+    const calls: Call[] = []
+    const { updater } = makeUpdater(f, {
+      target: darwin,
+      fetch: makeFetch(f, { hash: 'bad' }),
+      spawn: fakeSpawn(calls)
+    })
+    await updater.offer(makeRelease(f))
+    await updater.install()
+    expect(updater.state().phase).toBe('error')
+    expect(calls).toEqual([])
+  })
+})
+
+describe('target: win32', () => {
+  const windows = { platform: 'win32', arch: 'x64' } as const
+  const exe = 'C:\\Users\\u\\AppData\\Local\\Programs\\Transmission Helm\\Transmission Helm.exe'
+
+  it('uses win32 path rules', () => {
+    expect(pathFor('win32')).toBe(win32)
+  })
+
+  it('handles target paths with win32 rules whatever the host', () => {
+    expect(appImageStagingPath('C:\\Users\\u\\Apps\\th.AppImage', 'win32')).toBe(
+      'C:\\Users\\u\\Apps\\.th.AppImage.update'
+    )
+    expect(appImageStagingPath('C:/Users/u/Apps/th.AppImage', 'win32')).toBe(
+      'C:\\Users\\u\\Apps\\.th.AppImage.update'
+    )
+    expect(appBundleFromExe(exe)).toBeNull()
+  })
+
+  it('offers the NSIS installer as installable, not the portable build', async () => {
+    const f = fixture('win32')
+    const { updater } = makeUpdater(f, { target: windows, execPath: exe })
+    await updater.offer(makeRelease(f))
+    expect(updater.state()).toMatchObject({ phase: 'available', installable: true })
+    const portable = makeUpdater(f, {
+      target: { ...windows, portable: 'C:\\Users\\u\\Downloads\\th-portable.exe' },
+      execPath: exe
+    }).updater
+    await portable.offer(makeRelease(f))
+    expect(portable.state().installable).toBe(false)
+  })
+
+  it('runs the NSIS installer silently, detached, then quits', async () => {
+    const f = fixture('win32')
+    const calls: Call[] = []
+    const { updater, opts } = makeUpdater(f, {
+      target: windows,
+      execPath: exe,
+      spawn: fakeSpawn(calls)
+    })
+    await updater.offer(makeRelease(f))
+    await updater.install()
+    expect(updater.state().phase).toBe('installing')
+    expect(calls).toEqual([
+      {
+        // The installer is the verified download: a host path in the downloads folder.
+        command: join(f.dir, f.name),
+        args: ['/S', '--force-run'],
+        options: { detached: true, stdio: 'ignore' }
+      }
+    ])
+    expect(opts.quit).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports a spawn failure and does not quit', async () => {
+    const f = fixture('win32')
+    const { updater, opts } = makeUpdater(f, {
+      target: windows,
+      execPath: exe,
+      spawn: fakeSpawn([], { spawnError: new Error('spawn EACCES') })
+    })
+    await updater.offer(makeRelease(f))
+    await updater.install()
+    expect(updater.state()).toMatchObject({ phase: 'error', error: 'spawn EACCES' })
+    expect(opts.quit).not.toHaveBeenCalled()
+  })
+})
+
+describe('target: linux (AppImage)', () => {
+  it('uses posix path rules', () => {
+    expect(pathFor('linux')).toBe(posix)
+  })
+
+  it('stages the AppImage next to the running one', () => {
+    expect(appImageStagingPath('/home/u/Apps/transmission-helm-0.1.0.AppImage')).toBe(
+      '/home/u/Apps/.transmission-helm-0.1.0.AppImage.update'
+    )
+    expect(appImageStagingPath('/home/u/Apps/th.AppImage', 'linux')).toBe(
+      '/home/u/Apps/.th.AppImage.update'
+    )
+    // How the install test below sees a temp folder on a Windows host.
+    expect(appImageStagingPath('C:/T/Apps/th.AppImage', 'linux')).toBe(
+      'C:/T/Apps/.th.AppImage.update'
+    )
+  })
+
+  it('replaces the AppImage atomically and relaunches it', async () => {
+    const f = fixture('linux')
+    const appDir = posix.join(posixRoot(), 'Apps')
+    mkdirSync(appDir)
+    const image = posix.join(appDir, 'transmission-helm-0.1.0.AppImage')
+    writeFileSync(image, 'old')
+    const { updater, opts } = makeUpdater(f, {
+      target: { platform: 'linux', arch: 'x64', appImage: image }
+    })
+    await updater.offer(makeRelease(f))
+    await updater.install()
+    expect(updater.state().error).toBeUndefined()
+    expect(readFileSync(image)).toEqual(Buffer.from(f.payload))
+    // Windows has no exec bit: chmod there only toggles read-only.
+    if (process.platform !== 'win32') expect((await stat(image)).mode & 0o777).toBe(0o755)
+    expect(readdirSync(appDir)).toEqual(['transmission-helm-0.1.0.AppImage'])
+    expect(opts.relaunch).toHaveBeenCalledWith({ execPath: image })
+    expect(opts.exit).toHaveBeenCalledWith(0)
+  })
+})
+
+describe('not installable', () => {
+  it('is not installable in development or without an AppImage', async () => {
+    const f = fixture()
+    const dev = makeUpdater(f, { packaged: false }).updater
+    await dev.offer(makeRelease(f))
+    expect(dev.state()).toMatchObject({ phase: 'available', installable: false })
+
+    const deb = makeUpdater(f, { target: { platform: 'linux', arch: 'x64' } }).updater
+    await deb.offer(makeRelease(f))
+    expect(deb.state().installable).toBe(false)
+  })
+
+  it('does nothing when not installable', async () => {
+    const f = fixture()
+    const fetchMock = makeFetch(f)
+    const { updater } = makeUpdater(f, { packaged: false, fetch: fetchMock })
+    await updater.offer(makeRelease(f))
+    await updater.download()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(updater.state().phase).toBe('available')
   })
 
   it('opens the release page instead when not installable', async () => {
@@ -603,71 +766,16 @@ describe('Updater.install (macOS)', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('stops after a failed download without installing', async () => {
+  it('has no self-update for unsupported targets', async () => {
     const f = fixture()
-    const calls: Call[] = []
-    const { updater } = makeUpdater(f, {
-      fetch: makeFetch(f, { hash: 'bad' }),
-      spawn: fakeSpawn(calls)
-    })
-    await updater.offer(makeRelease(f))
-    await updater.install()
-    expect(updater.state().phase).toBe('error')
-    expect(calls).toEqual([])
-  })
-})
-
-describe('Updater.install (Windows)', () => {
-  it('runs the NSIS installer silently, detached, then quits', async () => {
-    const f = fixture('win32')
-    const calls: Call[] = []
-    const { updater, opts } = makeUpdater(f, {
-      target: { platform: 'win32', arch: 'x64' },
-      spawn: fakeSpawn(calls)
-    })
-    await updater.offer(makeRelease(f))
-    await updater.install()
-    expect(updater.state().phase).toBe('installing')
-    expect(calls).toEqual([
-      {
-        command: join(f.dir, f.name),
-        args: ['/S', '--force-run'],
-        options: { detached: true, stdio: 'ignore' }
-      }
-    ])
-    expect(opts.quit).toHaveBeenCalledTimes(1)
-  })
-
-  it('reports a spawn failure and does not quit', async () => {
-    const f = fixture('win32')
-    const { updater, opts } = makeUpdater(f, {
-      target: { platform: 'win32', arch: 'x64' },
-      spawn: fakeSpawn([], { spawnError: new Error('spawn EACCES') })
-    })
-    await updater.offer(makeRelease(f))
-    await updater.install()
-    expect(updater.state()).toMatchObject({ phase: 'error', error: 'spawn EACCES' })
-    expect(opts.quit).not.toHaveBeenCalled()
-  })
-})
-
-describe('Updater.install (Linux AppImage)', () => {
-  it('replaces the AppImage atomically and relaunches it', async () => {
-    const f = fixture('linux')
-    const appDir = join(f.root, 'Apps')
-    mkdirSync(appDir)
-    const image = join(appDir, 'transmission-helm-0.1.0.AppImage')
-    writeFileSync(image, 'old')
-    const { updater, opts } = makeUpdater(f, {
-      target: { platform: 'linux', arch: 'x64', appImage: image }
-    })
-    await updater.offer(makeRelease(f))
-    await updater.install()
-    expect(updater.state().error).toBeUndefined()
-    expect(readFileSync(image)).toEqual(Buffer.from(f.payload))
-    expect((await stat(image)).mode & 0o777).toBe(0o755)
-    expect(readdirSync(appDir)).toEqual(['transmission-helm-0.1.0.AppImage'])
-    expect(opts.relaunch).toHaveBeenCalledWith({ execPath: image })
-    expect(opts.exit).toHaveBeenCalledWith(0)
+    for (const target of [
+      { platform: 'darwin', arch: 'x64' },
+      { platform: 'win32', arch: 'arm64' },
+      { platform: 'freebsd', arch: 'x64' }
+    ] as const) {
+      const { updater } = makeUpdater(f, { target })
+      await updater.offer(makeRelease(f))
+      expect(updater.state()).toMatchObject({ phase: 'available', installable: false })
+    }
   })
 })
