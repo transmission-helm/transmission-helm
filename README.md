@@ -23,6 +23,7 @@ Built with Electron, Svelte 5 and TypeScript. Talks to Transmission 4.1+ over it
 - Auto-reconnect with backoff, polling slows down while the window is hidden
 - Runs in the background: closing the window keeps the app in the menu bar (macOS) or tray, with live speeds next to the icon, torrent counts, session totals, the active torrents (click one to jump to it), speed limits and start/stop all
 - Notifications for finished downloads and errors, update check against GitHub releases
+- Optional notice when the Transmission daemon is older than the latest stable Transmission release, with a hint on how to update it for common setups (Docker, Debian/Ubuntu, macOS, Windows, Synology)
 - About → Open source licenses lists every shipped component with its license text (generated from the dependencies at build time)
 
 ## Install

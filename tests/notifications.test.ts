@@ -41,4 +41,17 @@ describe('notificationContent', () => {
     expect(c.body).toContain('1.2.0')
     expect(c.url).toBe('https://example.com')
   })
+  it('daemon update available carries both versions and the release url', () => {
+    const c = notificationContent({
+      kind: 'daemonUpdateAvailable',
+      version: '4.1.3',
+      daemonVersion: '4.1.1',
+      url: 'https://github.com/transmission/transmission/releases/tag/4.1.3'
+    })
+    expect(c.title).toBe('Transmission Update Available')
+    expect(c.body).toContain('4.1.3')
+    expect(c.body).toContain('4.1.1')
+    expect(c.tag).toBe('daemon-update-4.1.3')
+    expect(c.url).toBe('https://github.com/transmission/transmission/releases/tag/4.1.3')
+  })
 })

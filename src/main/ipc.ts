@@ -12,6 +12,7 @@ import type {
 } from '../shared/rpc-types'
 import type { AppSettings, DetailTab, UiState } from '../shared/settings'
 import type { ConnectionManager } from './connection'
+import type { DaemonUpdateMonitor } from './daemon-update'
 import type { PeerResolver } from './peer-resolver'
 import type { SettingsStore } from './settings'
 import type { UpdateChecker } from './update-checker'
@@ -22,6 +23,7 @@ export interface IpcDeps {
   connection: ConnectionManager
   updates: UpdateChecker
   updater: Updater
+  daemonUpdate: DaemonUpdateMonitor
   peers: PeerResolver
   window: () => BrowserWindow | null
   onSettingsChanged: () => void
@@ -195,6 +197,11 @@ export function registerIpc(deps: IpcDeps): void {
   handle('helm:updates:install', () => deps.updater.install())
   handle('helm:updates:cancel', () => deps.updater.cancel())
   handle('helm:updates:dismiss', () => deps.updater.dismiss())
+
+  // ---- daemon updates (the monitor never rejects; errors land in state.error)
+  handle('helm:daemonUpdate:state', () => deps.daemonUpdate.state())
+  handle('helm:daemonUpdate:check', () => deps.daemonUpdate.check())
+  handle('helm:daemonUpdate:dismiss', () => deps.daemonUpdate.dismiss())
 
   // ---- peers
   handle('helm:peers:resolve', async (ips: unknown): Promise<PeerResolution> => {

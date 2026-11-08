@@ -4,7 +4,12 @@
  * The main process is the source of truth; this mirrors its snapshots and
  * holds purely UI-side state (selection, filters, dialogs).
  */
-import type { ConnectionSnapshot, IncomingTorrent, UpdateState } from '../../../shared/ipc'
+import type {
+  ConnectionSnapshot,
+  DaemonUpdateState,
+  IncomingTorrent,
+  UpdateState
+} from '../../../shared/ipc'
 import type { TorrentDetail } from '../../../shared/rpc-types'
 import type { AppSettings, DetailTab, UiState } from '../../../shared/settings'
 import { defaultSettings, defaultUiState } from '../../../shared/settings'
@@ -55,6 +60,18 @@ class AppState {
   detail = $state<TorrentDetail | null>(null)
   /** In-app updater state (rail banner, Settings → Updates). */
   update = $state<UpdateState>({ phase: 'idle', installable: false })
+  /** Transmission daemon update check (Footer chip, Daemon page card, Settings → Updates). */
+  daemonUpdate = $state<DaemonUpdateState>({
+    enabled: false,
+    daemonVersion: null,
+    latest: null,
+    outdated: false,
+    dismissedVersion: null,
+    platform: 'unknown',
+    hint: null,
+    checkedAt: null,
+    error: null
+  })
   settings = $state<AppSettings>(defaultSettings())
   ui = $state<UiState>(defaultUiState())
   /** Whether the OS credential store can hold passwords; loaded in init(). */
@@ -85,6 +102,13 @@ class AppState {
   )
   /** Open / Open containing folder only work for a local daemon or with path mappings. */
   canOpenFiles = $derived(canOpenLocalFiles(this.activeProfile))
+  /** The daemon notice to show, if any: on, outdated and not dismissed for this version. */
+  daemonUpdateNotice = $derived.by(() => {
+    const d = this.daemonUpdate
+    if (!d.enabled || !d.outdated || !d.latest || !this.connected) return null
+    if (d.dismissedVersion === d.latest.version) return null
+    return d.latest
+  })
 
   filtered = $derived.by(() => {
     const q = this.search.trim().toLowerCase()
@@ -233,11 +257,16 @@ class AppState {
         }
       }),
       h.connection.onDetail((d) => (this.detail = d)),
-      h.events.onUpdateState((u) => (this.update = u))
+      h.events.onUpdateState((u) => (this.update = u)),
+      h.events.onDaemonUpdateState((d) => (this.daemonUpdate = d))
     ]
     void h.updates
       .state()
       .then((u) => (this.update = u))
+      .catch(() => {})
+    void h.daemonUpdate
+      .state()
+      .then((d) => (this.daemonUpdate = d))
       .catch(() => {})
     // Keep the main process informed of which torrent/tab to poll in detail.
     const stop = $effect.root(() => {

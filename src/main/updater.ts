@@ -16,6 +16,8 @@ import { evaluateRelease, type GitHubRelease, type GitHubReleaseAsset } from './
 export const BUNDLE_ID = 'app.transmissionhelm.desktop'
 export const APP_BUNDLE_NAME = 'Transmission Helm.app'
 const DISMISSED_FILE = 'dismissed.json'
+/** Files in the updates folder that are not downloads; cleanDir() leaves them alone. */
+const KEPT_FILES = new Set([DISMISSED_FILE, 'daemon.json'])
 
 export interface UpdateTarget {
   platform: NodeJS.Platform
@@ -422,12 +424,12 @@ export class Updater {
     }
   }
 
-  /** Removes earlier downloads (keeps the dismissal record). */
+  /** Removes earlier downloads (keeps the dismissal record and the daemon update cache). */
   private async cleanDir(): Promise<void> {
     const entries = await fsp.readdir(this.options.dir).catch(() => [] as string[])
     await Promise.all(
       entries
-        .filter((n) => n !== DISMISSED_FILE)
+        .filter((n) => !KEPT_FILES.has(n))
         .map((n) =>
           fsp.rm(join(this.options.dir, n), { recursive: true, force: true }).catch(() => undefined)
         )

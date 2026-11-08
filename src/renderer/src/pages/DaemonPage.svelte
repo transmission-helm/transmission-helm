@@ -1,5 +1,6 @@
 <script lang="ts">
   import { app } from '../lib/state.svelte'
+  import DaemonUpdateCard from '../components/DaemonUpdateCard.svelte'
   import EmptyState from '../components/EmptyState.svelte'
   import OptionsLayout, { type OptionsForm } from './OptionsLayout.svelte'
   import DaemonOptionsForm from '../dialogs/DaemonOptionsForm.svelte'
@@ -10,6 +11,7 @@
 
 {#if app.connected}
   <OptionsLayout {form} savedText="Transmission options saved">
+    {#snippet header()}<DaemonUpdateCard />{/snippet}
     <DaemonOptionsForm bind:this={form} layout="page" />
   </OptionsLayout>
 {:else}

@@ -57,6 +57,7 @@
     'trayClose',
     'trayShowSpeeds',
     'checkForUpdates',
+    'notifyDaemonUpdates',
     'resolvePeerHosts',
     'resolvePeerCountries',
     'showCountryFlags'
@@ -95,6 +96,21 @@
   let update = $state<UpdateInfo | null | undefined>(undefined)
   let geoip = $state<GeoipStatus | null>(null)
   let geoipBusy = $state(false)
+  let daemonChecking = $state(false)
+
+  /** One-line result of the daemon check, shown next to its Check now button. */
+  const daemonStatus = $derived.by(
+    (): { text: string; tone: 'ok' | 'warn' | 'error' | 'muted' } | null => {
+      const d = app.daemonUpdate
+      if (d.error) return { text: `Check failed: ${d.error}`, tone: 'error' }
+      const running = d.daemonVersion?.split(' ')[0] ?? null
+      if (!d.latest) return running ? null : { text: 'Not connected to a daemon', tone: 'muted' }
+      if (!running) return { text: `Latest Transmission: ${d.latest.version}`, tone: 'muted' }
+      if (d.outdated)
+        return { text: `Daemon ${running} · latest ${d.latest.version}`, tone: 'warn' }
+      return { text: `Up to date (daemon ${running})`, tone: 'ok' }
+    }
+  )
 
   const DBIP_URL = 'https://db-ip.com'
 
@@ -190,6 +206,13 @@
     const g = await updateGeoipDatabase()
     geoipBusy = false
     if (g) geoip = g
+  }
+
+  async function checkDaemonNow(): Promise<void> {
+    daemonChecking = true
+    const s = await app.run('Daemon update check', () => window.helm.daemonUpdate.check())
+    daemonChecking = false
+    if (s) app.daemonUpdate = s
   }
 
   async function checkNow(): Promise<void> {
@@ -382,6 +405,29 @@
         {#if app.update.notes}
           <pre class="notes span2 selectable">{app.update.notes}</pre>
         {/if}
+      {/if}
+      <label class="check"
+        ><input type="checkbox" bind:checked={form.notifyDaemonUpdates} /> Tell me when the Transmission
+        daemon has an update</label
+      >
+      <span class="span2 hint indent"
+        >Compares the daemon version with the latest stable Transmission release. Distribution
+        packages often lag upstream.</span
+      >
+      {#if form.notifyDaemonUpdates}
+        <span class="span2 form-row indent">
+          <button class="btn" onclick={checkDaemonNow} disabled={daemonChecking}
+            >{daemonChecking ? 'Checking…' : 'Check now'}</button
+          >
+          {#if daemonStatus && !daemonChecking}
+            <span
+              class:ok-text={daemonStatus.tone === 'ok'}
+              class:warn={daemonStatus.tone === 'warn'}
+              class:error-text={daemonStatus.tone === 'error'}
+              class:muted={daemonStatus.tone === 'muted'}>{daemonStatus.text}</span
+            >
+          {/if}
+        </span>
       {/if}
     </div>
   </div>
