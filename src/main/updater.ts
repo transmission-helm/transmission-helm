@@ -1,7 +1,7 @@
 import { spawn as nodeSpawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { promises as fsp } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { join, posix, win32, type PlatformPath } from 'node:path'
 import type { UpdateState } from '../shared/ipc'
 import { evaluateRelease, type GitHubRelease, type GitHubReleaseAsset } from './update-checker'
 
@@ -12,6 +12,10 @@ import { evaluateRelease, type GitHubRelease, type GitHubReleaseAsset } from './
  *
  * Nothing here imports `electron`; the boot code injects relaunch/exit/quit/openExternal.
  */
+
+// Path rules: the bare `join` is only for host paths (the userData downloads folder). Paths that
+// belong to the install target (the .app bundle, the AppImage) go through pathFor(platform), so
+// they are handled by that platform's rules whatever OS runs the code (tests run everywhere).
 
 export const BUNDLE_ID = 'app.transmissionhelm.desktop'
 export const APP_BUNDLE_NAME = 'Transmission Helm.app'
@@ -135,15 +139,29 @@ export function manifestEntry(text: string, name: string): ManifestEntry | null 
   return parseManifest(text).find((e) => e.url === name) ?? null
 }
 
+/** Path functions for paths that belong to `platform`, independent of the host OS. */
+export function pathFor(platform: NodeJS.Platform): PlatformPath {
+  return platform === 'win32' ? win32 : posix
+}
+
 /** `/Applications/Transmission Helm.app/Contents/MacOS/Transmission Helm` → the `.app` path. */
 export function appBundleFromExe(exePath: string): string | null {
-  const m = /^(\/.+\.app)\/Contents\/MacOS\/[^/]+$/.exec(exePath)
-  return m ? m[1] : null
+  const p = pathFor('darwin')
+  const macos = p.dirname(exePath)
+  const contents = p.dirname(macos)
+  const bundle = p.dirname(contents)
+  const valid =
+    p.basename(exePath) !== '' &&
+    p.basename(macos) === 'MacOS' &&
+    p.basename(contents) === 'Contents' &&
+    /.\.app$/.test(p.basename(bundle))
+  return valid ? bundle : null
 }
 
 /** Where the new AppImage is staged: a hidden file next to the running one (same filesystem). */
-export function appImageStagingPath(appImage: string): string {
-  return join(dirname(appImage), `.${basename(appImage)}.update`)
+export function appImageStagingPath(appImage: string, platform: NodeJS.Platform = 'linux'): string {
+  const p = pathFor(platform)
+  return p.join(p.dirname(appImage), `.${p.basename(appImage)}.update`)
 }
 
 export function isHelmInfoPlist(plist: string): boolean {
@@ -174,10 +192,13 @@ export function runProcess(spawn: SpawnFn, command: string, args: string[]): Pro
     const child = spawn(command, args, { stdio: 'ignore' })
     child.once('error', reject)
     child.once('exit', (code) =>
-      code === 0 ? resolve() : reject(new Error(`${basename(command)} exited with code ${code}`))
+      code === 0 ? resolve() : reject(new Error(`${commandName(command)} exited with code ${code}`))
     )
   })
 }
+
+/** `/usr/bin/ditto` → `ditto`, `C:\\x\\setup.exe` → `setup.exe` (win32 rules accept both separators). */
+const commandName = (command: string): string => win32.basename(command)
 
 /** Resolves once a detached child has started. */
 function startDetached(spawn: SpawnFn, command: string, args: string[]): Promise<void> {
@@ -440,22 +461,23 @@ export class Updater {
 
   private async installMac(zip: string): Promise<void> {
     const spawn = this.options.spawn ?? defaultSpawn
+    const p = pathFor(this.options.target.platform)
     const bundle = appBundleFromExe(this.options.execPath)
     if (!bundle) throw new Error('Could not locate the running application bundle')
-    const parent = dirname(bundle)
+    const parent = p.dirname(bundle)
     // Stage next to the bundle: proves the folder is writable before anything is touched, and
     // keeps the final rename on one filesystem.
     let staging: string
     try {
-      staging = await fsp.mkdtemp(join(parent, '.transmission-helm-update-'))
+      staging = await fsp.mkdtemp(p.join(parent, '.transmission-helm-update-'))
     } catch (err) {
       if (isPermissionError(err)) throw new NotWritableError(parent)
       throw err
     }
     try {
       await runProcess(spawn, '/usr/bin/ditto', ['-x', '-k', zip, staging])
-      const extracted = await findAppBundle(staging)
-      const plist = await fsp.readFile(join(extracted, 'Contents', 'Info.plist'), 'utf8')
+      const extracted = await findAppBundle(staging, p)
+      const plist = await fsp.readFile(p.join(extracted, 'Contents', 'Info.plist'), 'utf8')
       if (!isHelmInfoPlist(plist))
         throw new Error('The downloaded archive does not contain Transmission Helm')
       const old = `${bundle}.old`
@@ -494,11 +516,13 @@ export class Updater {
   private async installAppImage(image: string): Promise<void> {
     const target = this.options.target.appImage
     if (!target) throw new Error('Not running from an AppImage')
-    const staging = appImageStagingPath(target)
+    const { platform } = this.options.target
+    const p = pathFor(platform)
+    const staging = appImageStagingPath(target, platform)
     try {
       await fsp.copyFile(image, staging)
     } catch (err) {
-      if (isPermissionError(err)) throw new NotWritableError(dirname(target))
+      if (isPermissionError(err)) throw new NotWritableError(p.dirname(target))
       throw err
     }
     try {
@@ -506,7 +530,7 @@ export class Updater {
       await fsp.rename(staging, target)
     } catch (err) {
       await fsp.rm(staging, { force: true }).catch(() => undefined)
-      if (isPermissionError(err)) throw new NotWritableError(dirname(target))
+      if (isPermissionError(err)) throw new NotWritableError(p.dirname(target))
       throw err
     }
     await fsp.rm(image, { force: true }).catch(() => undefined)
@@ -559,11 +583,11 @@ export class Updater {
   }
 }
 
-async function findAppBundle(dir: string): Promise<string> {
+async function findAppBundle(dir: string, p: PlatformPath): Promise<string> {
   const entries = await fsp.readdir(dir)
   const name = entries.includes(APP_BUNDLE_NAME)
     ? APP_BUNDLE_NAME
     : entries.find((n) => n.endsWith('.app'))
   if (!name) throw new Error('The downloaded archive does not contain an application')
-  return join(dir, name)
+  return p.join(dir, name)
 }

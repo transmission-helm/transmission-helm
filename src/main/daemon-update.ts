@@ -228,8 +228,9 @@ export class DaemonUpdateMonitor {
     return this.saving
   }
 
-  /** Resolves once pending writes are on disk (tests). */
-  flush(): Promise<void> {
-    return this.saving
+  /** Resolves once an in-flight check and every pending write are done (tests). */
+  async flush(): Promise<void> {
+    await this.inflight?.catch(() => undefined)
+    await this.saving
   }
 }

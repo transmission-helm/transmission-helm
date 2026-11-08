@@ -32,9 +32,10 @@ let daemon: DaemonInfo | null
 let fetchMock: ReturnType<typeof vi.fn<DaemonUpdateFetch>>
 let states: DaemonUpdateState[]
 let available: DaemonUpdateAvailable[]
+let monitors: DaemonUpdateMonitor[]
 
 function monitor(): DaemonUpdateMonitor {
-  return new DaemonUpdateMonitor({
+  const m = new DaemonUpdateMonitor({
     dir,
     fetch: fetchMock,
     now: () => clock,
@@ -43,6 +44,8 @@ function monitor(): DaemonUpdateMonitor {
     onState: (s) => states.push(s),
     onAvailable: (a) => available.push(a)
   })
+  monitors.push(m)
+  return m
 }
 
 beforeEach(() => {
@@ -55,9 +58,15 @@ beforeEach(() => {
   )
   states = []
   available = []
+  monitors = []
 })
 
-afterEach(() => rmSync(dir, { recursive: true, force: true }))
+// Let every monitor finish its check and writes first: removing the folder under a pending
+// write makes it fail (ENOENT on Windows), which the monitor logs.
+afterEach(async () => {
+  await Promise.all(monitors.map((m) => m.flush()))
+  rmSync(dir, { recursive: true, force: true })
+})
 
 describe('DaemonUpdateMonitor', () => {
   it('checks the Transmission releases and reports an outdated daemon', async () => {
