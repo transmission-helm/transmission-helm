@@ -7,6 +7,16 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
+        update-types: [minor, patch]
+    # Major bumps of these need manual work (peer ranges, Node version, Electron
+    # breaking changes), so they arrive as separate PRs instead of in the group.
+    ignore:
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      - dependency-name: electron
+        update-types: [version-update:semver-major]
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
     open-pull-requests-limit: 5
   - package-ecosystem: github-actions
     directory: /
