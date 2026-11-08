@@ -27,14 +27,7 @@ Built with Electron, Svelte 5 and TypeScript. Talks to Transmission 4.1+ over it
 
 ## Install
 
-**macOS with Homebrew**
-
-```bash
-brew tap transmission-helm/tap
-brew install --cask --no-quarantine transmission-helm
-```
-
-**Direct download** from the [Releases](https://github.com/transmission-helm/transmission-helm/releases) page:
+Download the latest build for your platform from the [Releases](https://github.com/transmission-helm/transmission-helm/releases) page:
 
 | Platform                   | Package                                   |
 | -------------------------- | ----------------------------------------- |
@@ -102,7 +95,7 @@ Bump `version` in `package.json`, commit, then tag and push:
 git tag v0.2.0 && git push --tags
 ```
 
-The Release workflow builds installers for all three platforms and attaches them to a draft GitHub release. Builds are not code-signed: on macOS, right-click the app and choose Open the first time (or install through Homebrew with `--no-quarantine`); on Windows, choose "More info → Run anyway" in the SmartScreen prompt. After publishing, run `node packaging/update.mjs <version>` and update the Homebrew tap, winget and Flathub manifests from `packaging/`.
+The Release workflow builds installers for all three platforms and attaches them to a draft GitHub release. Builds are not code-signed: on macOS, right-click the app and choose Open the first time; on Windows, choose "More info → Run anyway" in the SmartScreen prompt.
 
 ## License
 

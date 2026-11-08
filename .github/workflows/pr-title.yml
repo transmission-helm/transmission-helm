@@ -44,13 +44,10 @@ jobs:
             dialogs
             peers
             geoip
-            packaging
-            flatpak
-            homebrew
-            winget
             release
             ci
             deps
+            deps-dev
             docs
             repo
           requireScope: true

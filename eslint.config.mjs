@@ -22,7 +22,7 @@ export default defineConfig(
     }
   },
   {
-    files: ['tests/**/*.ts', 'scripts/**/*.{js,mjs,ts}', 'packaging/**/*.{js,mjs,ts}'],
+    files: ['tests/**/*.ts', 'scripts/**/*.{js,mjs,ts}'],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'off'

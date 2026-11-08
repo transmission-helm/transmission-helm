@@ -69,10 +69,9 @@ Scopes name the area touched:
 | `table`, `inspector`, `dialogs`, `peers`, `geoip` | specific renderer features                        |
 | `shared`                                          | `src/shared`                                      |
 | `release`, `ci`, `deps`, `repo`                   | workflows, dependencies, repository configuration |
-| `packaging`, `flatpak`, `homebrew`, `winget`      | distribution manifests                            |
 | `docs`                                            | documentation only                                |
 
-Examples: `fix(rpc): keep the abort timer alive while reading the body`, `feat(table): add bulk action bar`, `build(flatpak): restrict Flathub builds to x86_64`.
+Examples: `fix(rpc): keep the abort timer alive while reading the body`, `feat(table): add bulk action bar`.
 
 Pull requests are squash-merged, so the PR title becomes the commit subject; a CI check rejects titles that do not follow the format.
 
